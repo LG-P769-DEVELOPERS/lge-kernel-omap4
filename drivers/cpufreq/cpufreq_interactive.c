@@ -466,8 +466,8 @@ static void cpufreq_interactive_idle_end(void)
 	if (!timer_pending(&pcpu->cpu_timer)) {
 		cpufreq_interactive_timer_resched(pcpu);
 	} else if (time_after_eq(jiffies, pcpu->cpu_timer.expires)) {
-		del_timer(&pcpu->cpu_timer);
-		del_timer(&pcpu->cpu_slack_timer);
+		del_timer_sync(&pcpu->cpu_timer);
+		del_timer_sync(&pcpu->cpu_slack_timer);
 		cpufreq_interactive_timer(smp_processor_id());
 	}
 
