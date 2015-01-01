@@ -574,8 +574,8 @@ static void cpufreq_interactive_idle_start(void)
 
 	/* Cancel the timer if cpu is offline */
 	if (cpu_is_offline(cpu)) {
-		del_timer(&pcpu->cpu_timer);
-		del_timer(&pcpu->cpu_slack_timer);
+		del_timer_sync(&pcpu->cpu_timer);
+		del_timer_sync(&pcpu->cpu_slack_timer);
 		goto exit;
 	}
 
@@ -622,8 +622,8 @@ static void cpufreq_interactive_idle_end(void)
 	if (!timer_pending(&pcpu->cpu_timer)) {
 		cpufreq_interactive_timer_resched(pcpu);
 	} else if (time_after_eq(jiffies, pcpu->cpu_timer.expires)) {
-		del_timer(&pcpu->cpu_timer);
-		del_timer(&pcpu->cpu_slack_timer);
+		del_timer_sync(&pcpu->cpu_timer);
+		del_timer_sync(&pcpu->cpu_slack_timer);
 		cpufreq_interactive_timer(smp_processor_id());
 	}
 
@@ -1451,6 +1451,14 @@ static int cpufreq_governor_intelliactive(struct cpufreq_policy *policy,
 		else if (policy->min > policy->cur)
 			__cpufreq_driver_target(policy,
 					policy->min, CPUFREQ_RELATION_L);
+
+		/* reschedule the timer if we stopped it */
+		pcpu = &per_cpu(cpuinfo, policy->cpu);
+
+		if (pcpu && !timer_pending(&pcpu->cpu_timer))
+			mod_timer(&pcpu->cpu_timer,
+				jiffies + usecs_to_jiffies(timer_rate));
+
 		for_each_cpu(j, policy->cpus) {
 			pcpu = &per_cpu(cpuinfo, j);
 
