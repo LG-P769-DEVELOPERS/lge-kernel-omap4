@@ -405,11 +405,6 @@ static void intelli_plug_suspend(struct early_suspend *handler)
 		screen_off_limit(true);
 		mutex_unlock(&intelli_plug_mutex);
 
-		// put rest of the cores to sleep unconditionally!
-		for_each_online_cpu(cpu) {
-			if (cpu != 0)
-				cpu_down(cpu);
-		}
 	}
 }
 
@@ -442,12 +437,6 @@ static void __cpuinit intelli_plug_resume(struct early_suspend *handler)
 		persist_count = BUSY_PERSISTENCE;
 		suspended = false;
 		mutex_unlock(&intelli_plug_mutex);
-
-		for_each_possible_cpu(cpu) {
-			if (cpu == 0)
-				continue;
-			cpu_up(cpu);
-		}
 
 		wakeup_boost();
 		screen_off_limit(false);
