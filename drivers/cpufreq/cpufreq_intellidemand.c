@@ -140,6 +140,10 @@ static DEFINE_PER_CPU(struct cpu_dbs_info_s, id_cpu_dbs_info);
 static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info);
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info);
 
+#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND
+static struct cpufreq_governor cpufreq_gov_ondemand;
+#endif
+
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
 /*
@@ -484,6 +488,10 @@ static void update_sampling_rate(unsigned int new_rate)
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
+		if (policy->governor != &cpufreq_gov_ondemand) {
+			cpufreq_cpu_put(policy);
+			continue;
+		}
 		dbs_info = &per_cpu(id_cpu_dbs_info, policy->cpu);
 		cpufreq_cpu_put(policy);
 
@@ -1941,6 +1949,11 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 
 	case CPUFREQ_GOV_LIMITS:
 		mutex_lock(&this_dbs_info->timer_mutex);
+		if (!this_dbs_info->cur_policy) {
+			pr_err("Dbs policy is NULL\n");
+			mutex_unlock(&this_dbs_info->timer_mutex);
+			return -EINVAL;
+		}
 		if (policy->max < this_dbs_info->cur_policy->cur)
 			__cpufreq_driver_target(this_dbs_info->cur_policy,
 				policy->max, CPUFREQ_RELATION_H);
@@ -1952,6 +1965,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				this_dbs_info->cur_policy,
 				policy,
 				dbs_tuners_ins.powersave_bias);
+                dbs_check_cpu(this_dbs_info);
 		mutex_unlock(&this_dbs_info->timer_mutex);
 		break;
 	}
